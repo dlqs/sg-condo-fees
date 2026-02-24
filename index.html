@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SG Condo Fees — Singapore Maintenance Fee Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --border: #e2e5eb;
+      --text: #1a1d23;
+      --muted: #6b7280;
+      --accent: #e63946;
+      --accent-light: #fef2f2;
+      --tag-bg: #eef2ff;
+      --tag-text: #3730a3;
+      --radius: 10px;
+      --shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { font-size: 1.5rem; }
+    .logo h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.3px; }
+    .logo p { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+    .btn-submit {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-submit:hover { opacity: 0.88; }
+
+    /* Stats bar */
+    .stats-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .stat { display: flex; flex-direction: column; gap: 1px; }
+    .stat-value { font-size: 1.15rem; font-weight: 700; }
+    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Main */
+    main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .search-wrap { position: relative; flex: 1; min-width: 180px; }
+    .search-wrap input {
+      width: 100%;
+      padding: 9px 12px 9px 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      background: var(--card);
+      outline: none;
+    }
+    .search-wrap input:focus { border-color: #a0aec0; }
+    .search-icon {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 0.9rem;
+    }
+    select {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      background: var(--card);
+      outline: none;
+      cursor: pointer;
+    }
+    .count-label { font-size: 0.82rem; color: var(--muted); margin-left: auto; }
+
+    /* Table */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      background: #fafafa;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { color: var(--text); }
+    thead th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+    thead th.active .sort-arrow { opacity: 1; }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafbff; }
+    tbody td { padding: 14px 16px; font-size: 0.88rem; vertical-align: middle; }
+
+    .condo-name { font-weight: 600; font-size: 0.92rem; }
+    .condo-district { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .fee { font-weight: 700; font-size: 1rem; color: var(--text); }
+    .fee-range { font-size: 0.75rem; color: var(--muted); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .badge-high { background: #fef2f2; color: #b91c1c; }
+    .badge-mid  { background: #fefce8; color: #92400e; }
+    .badge-low  { background: #f0fdf4; color: #166534; }
+    .unit-tag {
+      display: inline-block;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      margin: 1px 2px;
+    }
+    .submissions { font-size: 0.78rem; color: var(--muted); }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state p { margin-top: 8px; font-size: 0.88rem; }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .modal p.sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 20px; }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; font-size: 0.78rem; font-weight: 600; margin-bottom: 5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    .form-row input, .form-row select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .form-row input:focus, .form-row select:focus { border-color: var(--accent); }
+    .form-note { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-cancel {
+      background: none;
+      border: 1px solid var(--border);
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .success-msg {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .success-msg .check { font-size: 2.5rem; margin-bottom: 10px; }
+    .success-msg h3 { font-size: 1rem; font-weight: 700; }
+    .success-msg p { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+
+    footer {
+      text-align: center;
+      padding: 32px 16px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 600px) {
+      .stats-bar { gap: 16px; }
+      thead th:nth-child(3), tbody td:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-icon">🏢</span>
+    <div>
+      <h1>SG Condo Fees</h1>
+      <p>Singapore maintenance fee tracker</p>
+    </div>
+  </div>
+  <button class="btn-submit" onclick="openModal()">+ Submit a Fee</button>
+</header>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<main>
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search condo name…" oninput="render()">
+    </div>
+    <select id="districtFilter" onchange="render()">
+      <option value="">All Districts</option>
+    </select>
+    <select id="sortSelect" onchange="render()">
+      <option value="fee-desc">Fee: High → Low</option>
+      <option value="fee-asc">Fee: Low → High</option>
+      <option value="name-asc">Name: A → Z</option>
+      <option value="name-desc">Name: Z → A</option>
+    </select>
+    <span class="count-label" id="countLabel"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Condo</th>
+          <th class="sortable active" data-sort="fee-desc" onclick="setSort(this)">
+            Avg. Monthly Fee <span class="sort-arrow">↓</span>
+          </th>
+          <th>Unit Types</th>
+          <th>Level</th>
+          <th class="submissions">Reports</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div style="font-size:2rem">🏠</div>
+      <p>No condos match your search.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Data is crowdsourced and for reference only. Fees vary by unit size and management. · <a href="#" onclick="openModal(); return false;">Submit your condo's fee</a>
+</footer>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModalOutside(event)">
+  <div class="modal" id="modalBox">
+    <div id="formContent">
+      <h2>Submit a Maintenance Fee</h2>
+      <p class="sub">Help others by sharing your condo's monthly maintenance fee.</p>
+
+      <div class="form-row">
+        <label>Condo Name *</label>
+        <input type="text" id="f-name" placeholder="e.g. The Interlace">
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>Monthly Fee (SGD) *</label>
+          <input type="number" id="f-fee" placeholder="e.g. 450" min="50" max="5000">
+        </div>
+        <div class="form-row">
+          <label>District</label>
+          <input type="text" id="f-district" placeholder="e.g. D04, Buona Vista">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Unit Type</label>
+        <select id="f-unit">
+          <option value="">— select —</option>
+          <option>Studio</option>
+          <option>1-Bedroom</option>
+          <option>2-Bedroom</option>
+          <option>3-Bedroom</option>
+          <option>4-Bedroom</option>
+          <option>5-Bedroom+</option>
+          <option>Penthouse</option>
+        </select>
+        <p class="form-note">Fees are typically lower for larger units in psf terms.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-submit" onclick="submitForm()">Submit</button>
+      </div>
+    </div>
+
+    <div id="successContent" style="display:none">
+      <div class="success-msg">
+        <div class="check">✅</div>
+        <h3>Thanks for your submission!</h3>
+        <p>We'll review and add it to the list soon.<br>Real submissions coming in a future update.</p>
+        <div class="modal-actions" style="justify-content:center; margin-top:16px">
+          <button class="btn-submit" onclick="closeModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const data = [
+    { name: "The Interlace",         district: "D04 · HarbourFront", fee: 520, units: ["2-Bedroom","3-Bedroom","4-Bedroom"], reports: 8 },
+    { name: "Reflections at Keppel Bay", district: "D04 · Keppel Bay", fee: 890, units: ["2-Bedroom","3-Bedroom","Penthouse"], reports: 5 },
+    { name: "The Sail @ Marina Bay",  district: "D01 · Marina Bay", fee: 740, units: ["Studio","1-Bedroom","2-Bedroom"], reports: 12 },
+    { name: "Icon",                   district: "D02 · Tanjong Pagar", fee: 390, units: ["Studio","1-Bedroom"], reports: 7 },
+    { name: "The Oceanfront",         district: "D04 · Sentosa Cove", fee: 1100, units: ["3-Bedroom","4-Bedroom","Penthouse"], reports: 4 },
+    { name: "D'Leedon",              district: "D10 · Farrer Road", fee: 480, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 9 },
+    { name: "Parc Esta",              district: "D14 · Eunos", fee: 310, units: ["2-Bedroom","3-Bedroom","4-Bedroom"], reports: 14 },
+    { name: "Treasure at Tampines",   district: "D18 · Tampines", fee: 280, units: ["2-Bedroom","3-Bedroom","4-Bedroom","5-Bedroom+"], reports: 19 },
+    { name: "The Poiz Residences",    district: "D13 · Potong Pasir", fee: 320, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 6 },
+    { name: "One Pearl Bank",         district: "D03 · Outram Park", fee: 440, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 10 },
+    { name: "Sky Everton",            district: "D02 · Everton Park", fee: 580, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 5 },
+    { name: "Avenue South Residence", district: "D03 · Buona Vista", fee: 350, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 11 },
+    { name: "Marina One Residences",  district: "D01 · Marina Bay", fee: 830, units: ["1-Bedroom","2-Bedroom","3-Bedroom","4-Bedroom"], reports: 7 },
+    { name: "Riverfront Residences",  district: "D19 · Hougang", fee: 290, units: ["1-Bedroom","2-Bedroom","3-Bedroom","4-Bedroom"], reports: 16 },
+    { name: "Stirling Residences",    district: "D03 · Queenstown", fee: 370, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 13 },
+    { name: "Amber Park",             district: "D15 · Katong", fee: 560, units: ["2-Bedroom","3-Bedroom","4-Bedroom","Penthouse"], reports: 6 },
+    { name: "The Clement Canopy",     district: "D05 · Clementi", fee: 340, units: ["2-Bedroom","3-Bedroom","4-Bedroom"], reports: 8 },
+    { name: "Seaside Residences",     district: "D15 · East Coast", fee: 490, units: ["1-Bedroom","2-Bedroom","3-Bedroom","4-Bedroom"], reports: 9 },
+  ];
+
+  let sortKey = "fee-desc";
+
+  function feeLevel(fee) {
+    if (fee >= 700) return { label: "Luxury", cls: "badge-high" };
+    if (fee >= 400) return { label: "Mid", cls: "badge-mid" };
+    return { label: "Affordable", cls: "badge-low" };
+  }
+
+  function setSort(th) {
+    const col = th.dataset.sort;
+    const active = document.querySelector('thead th.active');
+    if (active) active.classList.remove('active');
+    th.classList.add('active');
+    // Toggle fee sort
+    if (col === 'fee-desc' && sortKey === 'fee-desc') {
+      sortKey = 'fee-asc';
+      th.querySelector('.sort-arrow').textContent = '↑';
+      document.getElementById('sortSelect').value = 'fee-asc';
+    } else {
+      sortKey = 'fee-desc';
+      th.querySelector('.sort-arrow').textContent = '↓';
+      document.getElementById('sortSelect').value = 'fee-desc';
+    }
+    render();
+  }
+
+  function populateDistricts() {
+    const sel = document.getElementById('districtFilter');
+    const districts = [...new Set(data.map(d => d.district.split('·')[0].trim()))].sort();
+    districts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d; opt.textContent = d;
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderStats(filtered) {
+    const fees = filtered.map(d => d.fee);
+    const avg = fees.length ? Math.round(fees.reduce((a,b)=>a+b,0)/fees.length) : 0;
+    const min = fees.length ? Math.min(...fees) : 0;
+    const max = fees.length ? Math.max(...fees) : 0;
+    document.getElementById('statsBar').innerHTML = `
+      <div class="stat"><span class="stat-value">${data.length}</span><span class="stat-label">Condos</span></div>
+      <div class="stat"><span class="stat-value">S$${avg.toLocaleString()}/mo</span><span class="stat-label">Avg Fee</span></div>
+      <div class="stat"><span class="stat-value">S$${min.toLocaleString()} – S$${max.toLocaleString()}</span><span class="stat-label">Range</span></div>
+      <div class="stat"><span class="stat-value">${filtered.reduce((a,b)=>a+b.reports,0)}</span><span class="stat-label">Reports</span></div>
+    `;
+  }
+
+  function render() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const dist = document.getElementById('districtFilter').value;
+    sortKey = document.getElementById('sortSelect').value;
+
+    let rows = data.filter(d => {
+      const matchQ = !q || d.name.toLowerCase().includes(q) || d.district.toLowerCase().includes(q);
+      const matchD = !dist || d.district.startsWith(dist);
+      return matchQ && matchD;
+    });
+
+    rows.sort((a, b) => {
+      if (sortKey === 'fee-desc') return b.fee - a.fee;
+      if (sortKey === 'fee-asc')  return a.fee - b.fee;
+      if (sortKey === 'name-asc') return a.name.localeCompare(b.name);
+      if (sortKey === 'name-desc') return b.name.localeCompare(a.name);
+      return 0;
+    });
+
+    renderStats(data);
+    document.getElementById('countLabel').textContent = `${rows.length} condo${rows.length !== 1 ? 's' : ''}`;
+
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyState');
+
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = rows.map(d => {
+      const lvl = feeLevel(d.fee);
+      return `
+        <tr>
+          <td>
+            <div class="condo-name">${d.name}</div>
+            <div class="condo-district">${d.district}</div>
+          </td>
+          <td>
+            <div class="fee">S$${d.fee.toLocaleString()}/mo</div>
+          </td>
+          <td>${d.units.map(u => `<span class="unit-tag">${u}</span>`).join('')}</td>
+          <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
+          <td class="submissions">${d.reports} report${d.reports !== 1 ? 's' : ''}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function openModal() {
+    document.getElementById('formContent').style.display = 'block';
+    document.getElementById('successContent').style.display = 'none';
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modalBackdrop').classList.remove('open');
+  }
+  function closeModalOutside(e) {
+    if (e.target === document.getElementById('modalBackdrop')) closeModal();
+  }
+  function submitForm() {
+    const name = document.getElementById('f-name').value.trim();
+    const fee = document.getElementById('f-fee').value;
+    if (!name || !fee) { alert('Please fill in condo name and fee.'); return; }
+    document.getElementById('formContent').style.display = 'none';
+    document.getElementById('successContent').style.display = 'block';
+  }
+
+  populateDistricts();
+  render();
+</script>
+</body>
+</html>
