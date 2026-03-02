@@ -328,7 +328,7 @@
       <div class="success-msg">
         <div class="check">✅</div>
         <h3>Thanks for your submission!</h3>
-        <p>We'll review and add it to the list soon.<br>Real submissions coming in a future update.</p>
+        <p>Your submission has been saved.<br>We'll review and add it to the public list soon.</p>
         <div class="modal-actions" style="justify-content:center; margin-top:16px">
           <button class="btn-submit" onclick="closeModal()">Done</button>
         </div>
@@ -338,28 +338,35 @@
 </div>
 
 <script>
-  const data = [
-    { name: "The Interlace",         district: "D04 · HarbourFront", fee: 520, units: ["2-Bedroom","3-Bedroom","4-Bedroom"], reports: 8 },
-    { name: "Reflections at Keppel Bay", district: "D04 · Keppel Bay", fee: 890, units: ["2-Bedroom","3-Bedroom","Penthouse"], reports: 5 },
-    { name: "The Sail @ Marina Bay",  district: "D01 · Marina Bay", fee: 740, units: ["Studio","1-Bedroom","2-Bedroom"], reports: 12 },
-    { name: "Icon",                   district: "D02 · Tanjong Pagar", fee: 390, units: ["Studio","1-Bedroom"], reports: 7 },
-    { name: "The Oceanfront",         district: "D04 · Sentosa Cove", fee: 1100, units: ["3-Bedroom","4-Bedroom","Penthouse"], reports: 4 },
-    { name: "D'Leedon",              district: "D10 · Farrer Road", fee: 480, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 9 },
-    { name: "Parc Esta",              district: "D14 · Eunos", fee: 310, units: ["2-Bedroom","3-Bedroom","4-Bedroom"], reports: 14 },
-    { name: "Treasure at Tampines",   district: "D18 · Tampines", fee: 280, units: ["2-Bedroom","3-Bedroom","4-Bedroom","5-Bedroom+"], reports: 19 },
-    { name: "The Poiz Residences",    district: "D13 · Potong Pasir", fee: 320, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 6 },
-    { name: "One Pearl Bank",         district: "D03 · Outram Park", fee: 440, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 10 },
-    { name: "Sky Everton",            district: "D02 · Everton Park", fee: 580, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 5 },
-    { name: "Avenue South Residence", district: "D03 · Buona Vista", fee: 350, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 11 },
-    { name: "Marina One Residences",  district: "D01 · Marina Bay", fee: 830, units: ["1-Bedroom","2-Bedroom","3-Bedroom","4-Bedroom"], reports: 7 },
-    { name: "Riverfront Residences",  district: "D19 · Hougang", fee: 290, units: ["1-Bedroom","2-Bedroom","3-Bedroom","4-Bedroom"], reports: 16 },
-    { name: "Stirling Residences",    district: "D03 · Queenstown", fee: 370, units: ["1-Bedroom","2-Bedroom","3-Bedroom"], reports: 13 },
-    { name: "Amber Park",             district: "D15 · Katong", fee: 560, units: ["2-Bedroom","3-Bedroom","4-Bedroom","Penthouse"], reports: 6 },
-    { name: "The Clement Canopy",     district: "D05 · Clementi", fee: 340, units: ["2-Bedroom","3-Bedroom","4-Bedroom"], reports: 8 },
-    { name: "Seaside Residences",     district: "D15 · East Coast", fee: 490, units: ["1-Bedroom","2-Bedroom","3-Bedroom","4-Bedroom"], reports: 9 },
-  ];
+  const SUPABASE_URL = 'https://bckantfswqufvxalwref.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJja2FudGZzd3F1ZnZ4YWx3cmVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTY1OTcsImV4cCI6MjA4NzUzMjU5N30.CK6rappz47nFJNKY--rc3YQhNgOz-ElFnZDLShh42pg';
 
+  let data = [];
   let sortKey = "fee-desc";
+
+  async function loadData() {
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/condos?select=*&order=fee.desc`, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      const rows = await resp.json();
+      data = rows.map(r => ({
+        name: r.name,
+        district: r.district || '',
+        fee: r.fee,
+        units: r.unit_types || [],
+        reports: r.reports || 1
+      }));
+      populateDistricts();
+      render();
+    } catch(e) {
+      console.error('Failed to load data:', e);
+      document.getElementById('tableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999">Failed to load data. Please refresh.</td></tr>';
+    }
+  }
 
   function feeLevel(fee) {
     if (fee >= 700) return { label: "Luxury", cls: "badge-high" };
@@ -470,16 +477,46 @@
   function closeModalOutside(e) {
     if (e.target === document.getElementById('modalBackdrop')) closeModal();
   }
-  function submitForm() {
+  async function submitForm() {
     const name = document.getElementById('f-name').value.trim();
-    const fee = document.getElementById('f-fee').value;
+    const fee = parseInt(document.getElementById('f-fee').value);
+    const district = document.getElementById('f-district').value.trim();
+    const unit_type = document.getElementById('f-unit').value;
+
     if (!name || !fee) { alert('Please fill in condo name and fee.'); return; }
-    document.getElementById('formContent').style.display = 'none';
-    document.getElementById('successContent').style.display = 'block';
+
+    const btn = document.querySelector('#formContent .btn-submit');
+    btn.textContent = 'Submitting…';
+    btn.disabled = true;
+
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/submissions`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ condo_name: name, fee, district, unit_type: unit_type || null })
+      });
+
+      if (resp.ok || resp.status === 201) {
+        document.getElementById('formContent').style.display = 'none';
+        document.getElementById('successContent').style.display = 'block';
+      } else {
+        alert('Failed to submit. Please try again.');
+        btn.textContent = 'Submit';
+        btn.disabled = false;
+      }
+    } catch(e) {
+      alert('Error submitting. Please check your connection.');
+      btn.textContent = 'Submit';
+      btn.disabled = false;
+    }
   }
 
-  populateDistricts();
-  render();
+  loadData();
 </script>
 </body>
 </html>
