@@ -193,6 +193,41 @@
     .form-row input:focus, .form-row select:focus { border-color: var(--accent); }
     .form-note { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
 
+    /* Condo selected badge */
+    .condo-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+      margin-top: 4px;
+    }
+    .condo-badge .district { color: #166534; font-weight: 600; }
+    .condo-badge .change-btn { font-size: 0.78rem; color: var(--muted); cursor: pointer; text-decoration: underline; }
+
+    /* New condo expanded section */
+    .new-condo-card {
+      background: #fff8f0;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 8px;
+    }
+    .new-condo-card .card-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #c2410c;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    /* Fee section reveal */
+    .fee-section { margin-top: 4px; }
+
     /* Autocomplete dropdown */
     .autocomplete-wrap { position: relative; }
     .autocomplete-dropdown {
@@ -321,41 +356,62 @@
       <h2>Submit a Maintenance Fee</h2>
       <p class="sub">Help others by sharing your condo's monthly maintenance fee.</p>
 
+      <!-- Step 1: Condo name search -->
       <div class="form-row">
         <label>Condo Name *</label>
         <div class="autocomplete-wrap">
-          <input type="text" id="f-name" placeholder="e.g. The Interlace" autocomplete="off" oninput="onCondoInput()" onkeydown="onCondoKeydown(event)" onblur="hideDropdown()">
+          <input type="text" id="f-name" placeholder="Start typing your condo name…" autocomplete="off"
+            oninput="onCondoInput()" onkeydown="onCondoKeydown(event)" onblur="hideDropdown()">
           <div class="autocomplete-dropdown" id="ac-dropdown"></div>
         </div>
       </div>
-      <div class="form-row-2">
-        <div class="form-row">
-          <label>Monthly Fee (SGD) *</label>
-          <input type="number" id="f-fee" placeholder="e.g. 450" min="50" max="5000">
-        </div>
-        <div class="form-row">
-          <label>District</label>
-          <input type="text" id="f-district" placeholder="e.g. D04, Buona Vista">
+
+      <!-- Existing condo: locked district badge -->
+      <div id="existing-condo-info" style="display:none">
+        <div class="condo-badge">
+          <span class="district" id="existing-district-label"></span>
+          <span class="change-btn" onclick="resetCondoSelection()">✕ Change</span>
         </div>
       </div>
-      <div class="form-row">
-        <label>Unit Type</label>
-        <select id="f-unit">
-          <option value="">— select —</option>
-          <option>Studio</option>
-          <option>1-Bedroom</option>
-          <option>2-Bedroom</option>
-          <option>3-Bedroom</option>
-          <option>4-Bedroom</option>
-          <option>5-Bedroom+</option>
-          <option>Penthouse</option>
-        </select>
-        <p class="form-note">Fees are typically lower for larger units in psf terms.</p>
+
+      <!-- New condo: expanded section -->
+      <div id="new-condo-section" style="display:none">
+        <div class="new-condo-card">
+          <div class="card-title">🏗️ New condo — tell us more</div>
+          <div class="form-row">
+            <label>District *</label>
+            <input type="text" id="f-district-new" placeholder="e.g. D04 · Buona Vista">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Fee + unit type (revealed after condo selected) -->
+      <div id="fee-section" class="fee-section" style="display:none">
+        <div class="form-row-2" style="margin-top:14px">
+          <div class="form-row">
+            <label>Monthly Fee (SGD) *</label>
+            <input type="number" id="f-fee" placeholder="e.g. 450" min="50" max="5000">
+          </div>
+          <div class="form-row">
+            <label>Unit Type</label>
+            <select id="f-unit">
+              <option value="">— select —</option>
+              <option>Studio</option>
+              <option>1-Bedroom</option>
+              <option>2-Bedroom</option>
+              <option>3-Bedroom</option>
+              <option>4-Bedroom</option>
+              <option>5-Bedroom+</option>
+              <option>Penthouse</option>
+            </select>
+          </div>
+        </div>
+        <p class="form-note" style="margin-top:6px">Fees vary by unit size — selecting type helps others compare accurately.</p>
       </div>
 
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-        <button class="btn-submit" onclick="submitForm()">Submit</button>
+        <button class="btn-submit" id="submit-btn" onclick="submitForm()" style="display:none">Submit</button>
       </div>
     </div>
 
@@ -505,13 +561,8 @@
     document.getElementById('formContent').style.display = 'block';
     document.getElementById('successContent').style.display = 'none';
     document.getElementById('modalBackdrop').classList.add('open');
-    // Reset autocomplete state
-    document.getElementById('f-name').value = '';
-    document.getElementById('f-district').value = '';
-    document.getElementById('f-fee').value = '';
-    document.getElementById('f-unit').value = '';
-    isNewCondo = false;
-    hideDropdown();
+    resetCondoSelection();
+    setTimeout(() => document.getElementById('f-name').focus(), 100);
   }
   function closeModal() {
     document.getElementById('modalBackdrop').classList.remove('open');
@@ -522,10 +573,13 @@
   async function submitForm() {
     const name = document.getElementById('f-name').value.trim();
     const fee = parseInt(document.getElementById('f-fee').value);
-    const district = document.getElementById('f-district').value.trim();
     const unit_type = document.getElementById('f-unit').value;
+    const district = isNewCondo
+      ? document.getElementById('f-district-new').value.trim()
+      : (acResults.find(d => d.name === name) || {}).district || '';
 
     if (!name || !fee) { alert('Please fill in condo name and fee.'); return; }
+    if (isNewCondo && !district) { alert('Please enter the district for the new condo.'); document.getElementById('f-district-new').focus(); return; }
 
     const btn = document.querySelector('#formContent .btn-submit');
     btn.textContent = 'Submitting…';
@@ -602,14 +656,45 @@
   function selectCondo(i) {
     const condo = acResults[i];
     document.getElementById('f-name').value = condo.name;
-    if (condo.district) document.getElementById('f-district').value = condo.district;
+    document.getElementById('f-name').disabled = true;
     isNewCondo = false;
+    // Show district badge
+    document.getElementById('existing-district-label').textContent = condo.district ? '📍 ' + condo.district : '📍 District unknown';
+    document.getElementById('existing-condo-info').style.display = 'block';
+    document.getElementById('new-condo-section').style.display = 'none';
+    revealFeeSection();
     hideDropdown();
   }
 
   function selectNewCondo() {
+    const q = document.getElementById('f-name').value.trim();
+    document.getElementById('f-name').disabled = true;
     isNewCondo = true;
+    document.getElementById('existing-condo-info').style.display = 'none';
+    document.getElementById('new-condo-section').style.display = 'block';
+    document.getElementById('f-district-new').focus();
+    revealFeeSection();
     hideDropdown();
+  }
+
+  function revealFeeSection() {
+    document.getElementById('fee-section').style.display = 'block';
+    document.getElementById('submit-btn').style.display = 'inline-block';
+    setTimeout(() => document.getElementById('f-fee').focus(), 50);
+  }
+
+  function resetCondoSelection() {
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-name').disabled = false;
+    document.getElementById('f-name').focus();
+    document.getElementById('existing-condo-info').style.display = 'none';
+    document.getElementById('new-condo-section').style.display = 'none';
+    document.getElementById('fee-section').style.display = 'none';
+    document.getElementById('submit-btn').style.display = 'none';
+    document.getElementById('f-fee').value = '';
+    document.getElementById('f-unit').value = '';
+    document.getElementById('f-district-new').value = '';
+    isNewCondo = false;
   }
 
   function hideDropdown() {
