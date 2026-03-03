@@ -453,26 +453,50 @@
 
   async function loadData() {
     try {
-      const resp = await fetch(`${SUPABASE_URL}/rest/v1/condos?select=*&order=fee.desc`, {
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        }
+      const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+
+      const [condosResp, subsResp] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/condos?select=*&order=fee.desc`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/submissions?select=condo_name,created_at&order=created_at.desc`, { headers })
+      ]);
+
+      const condos = await condosResp.json();
+      const subs = await subsResp.json();
+
+      // Aggregate submissions: { condoName → { count, lastDate } }
+      const subsMap = {};
+      for (const s of subs) {
+        const key = s.condo_name.toLowerCase();
+        if (!subsMap[key]) subsMap[key] = { count: 0, lastDate: null };
+        subsMap[key].count++;
+        if (!subsMap[key].lastDate) subsMap[key].lastDate = s.created_at;
+      }
+
+      data = condos.map(r => {
+        const sub = subsMap[r.name.toLowerCase()] || {};
+        return {
+          name: r.name,
+          district: r.district || '',
+          fee: r.fee,
+          units: r.unit_types || [],
+          reports: r.reports || 1,
+          subCount: sub.count || 0,
+          lastSubDate: sub.lastDate || null
+        };
       });
-      const rows = await resp.json();
-      data = rows.map(r => ({
-        name: r.name,
-        district: r.district || '',
-        fee: r.fee,
-        units: r.unit_types || [],
-        reports: r.reports || 1
-      }));
+
       populateDistricts();
       render();
     } catch(e) {
       console.error('Failed to load data:', e);
       document.getElementById('tableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999">Failed to load data. Please refresh.</td></tr>';
     }
+  }
+
+  function fmtMonthYear(iso) {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return (d.getMonth() + 1).toString().padStart(2, '0') + '/' + String(d.getFullYear()).slice(2);
   }
 
   function feeLevel(fee) {
@@ -567,7 +591,10 @@
           </td>
           <td>${d.units.map(u => `<span class="unit-tag">${u}</span>`).join('')}</td>
           <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
-          <td class="submissions">${d.reports} report${d.reports !== 1 ? 's' : ''}</td>
+          <td class="submissions">
+            <div>${d.reports + d.subCount} submission${(d.reports + d.subCount) !== 1 ? 's' : ''}</div>
+            ${fmtMonthYear(d.lastSubDate) ? `<div style="font-size:0.72rem;color:var(--muted)">last ${fmtMonthYear(d.lastSubDate)}</div>` : ''}
+          </td>
         </tr>
       `;
     }).join('');
