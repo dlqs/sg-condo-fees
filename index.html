@@ -391,7 +391,7 @@
         <div class="form-row-2" style="margin-top:14px">
           <div class="form-row">
             <label>Monthly Fee (SGD) *</label>
-            <input type="number" id="f-fee" placeholder="e.g. 450" min="50" max="5000">
+            <input type="number" id="f-fee" placeholder="e.g. 450" min="50" max="5000" inputmode="numeric" pattern="[0-9]*" onkeydown="return ['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(event.key)||/[0-9]/.test(event.key)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
           </div>
           <div class="form-row">
             <label>Unit Type</label>
