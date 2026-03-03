@@ -347,6 +347,7 @@
 
 <footer>
   Data is crowdsourced and for reference only. Fees vary by unit size and management. · <a href="#" onclick="openModal(); return false;">Submit your condo's fee</a>
+  <div id="build-info" style="margin-top:6px;font-size:0.7rem;color:#aaa;font-family:monospace"></div>
 </footer>
 
 <!-- Modal -->
@@ -723,6 +724,17 @@
     }
     items.forEach((el, i) => el.classList.toggle('active', i === acIndex));
   }
+
+  // Build info in footer
+  fetch('https://api.github.com/repos/dlqs/sg-condo-fees/commits/main')
+    .then(r => r.json())
+    .then(d => {
+      const sha = d.sha.slice(0, 7);
+      const date = new Date(d.commit.committer.date);
+      const fmt = date.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+      document.getElementById('build-info').textContent = `commit ${sha} · pushed ${fmt}`;
+    })
+    .catch(() => {});
 
   loadData();
 </script>
